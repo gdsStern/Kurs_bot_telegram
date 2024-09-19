@@ -13,8 +13,7 @@ public class Message {
     private String text;
     private LocalDateTime date;
 
-    public Message(Long id, Long chatId, String text, LocalDateTime date) {
-        this.id = id;
+    public Message(Long chatId, String text, LocalDateTime date) {
         this.chatId = chatId;
         this.text = text;
         this.date = date;
@@ -36,7 +35,7 @@ public class Message {
         return text;
     }
 
-    public LocalDateTime getDate() {
+    public LocalDateTime getData() {
         return date;
     }
 

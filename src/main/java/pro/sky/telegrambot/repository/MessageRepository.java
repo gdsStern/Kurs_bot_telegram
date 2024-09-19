@@ -11,4 +11,5 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     List<Message> findAllByDate(LocalDateTime date);
     @Query(value = "SELECT * FROM message where date < current_timestamp", nativeQuery = true)
     List<Message> findIsAfterDate();
+
 }

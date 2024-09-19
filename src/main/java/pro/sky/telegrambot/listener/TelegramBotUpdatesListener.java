@@ -8,6 +8,7 @@ import com.pengrad.telegrambot.response.SendResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import pro.sky.telegrambot.model.Message;
@@ -28,16 +29,20 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
 
     private Logger logger = LoggerFactory.getLogger(TelegramBotUpdatesListener.class);
 
-    private Pattern pattern = Pattern.compile("(\\d{2}\\.\\d{2}\\.\\d{4}\\s\\d{2}:\\d{2})(\\s+)(.+)");
-    private String startMessage = "Привет.\n" +
+    private final Pattern pattern = Pattern.compile("(\\d{2}\\.\\d{2}\\.\\d{4}\\s\\d{2}:\\d{2})(\\s+)(.+)");
+    private final String startMessage = "Привет.\n" +
             "Чтобы создать уведомление отправьте мне сообщение согласно паттерну:\n" +
             "дд.мм.гггг чч:мм <Текст уведомления> ";
+    private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
 
-    @Autowired
-    private TelegramBot telegramBot;
+    private final TelegramBot telegramBot;
 
-    @Autowired
-    private MessageService messageService;
+    private final MessageService messageService;
+
+    public TelegramBotUpdatesListener(TelegramBot telegramBot, MessageService messageService) {
+        this.telegramBot = telegramBot;
+        this.messageService = messageService;
+    }
 
     @PostConstruct
     public void init() {
@@ -49,58 +54,44 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         updates.forEach(update -> {
             logger.info("Processing update: {}", update);
             if (Objects.isNull(update.message())) {
-                logger.info("Отправлено исправленное сообщение");
                 sendMessage(update.editedMessage().chat().id(), "Извините, я не работаю с исправленными сообщениями");
+                logger.info("Отправлено исправленное сообщение");
                 return;
             }
-            Matcher matcher = pattern.matcher(update.message().text());
-            if (update.message().text().equals("/start")) {
-                logger.info("Отправлен ответ на команду \"/start\"");
-                sendMessage(update.message().chat().id(), startMessage);
-            } else if (matcher.matches()) {
-                LocalDateTime date = LocalDateTime.parse(matcher.group(1), DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"));
-                String item = matcher.group(3);
-                try {
-                    if (!date.isAfter(LocalDateTime.now())) {
-                        throw new RuntimeException("Неправильная дата");
+            try {
+                Matcher matcher = pattern.matcher(update.message().text());
+                if (update.message().text().equals("/start")) {
+                    sendMessage(update.message().chat().id(), startMessage);
+                    logger.info("Отправлен ответ на команду \"/start\"");
+                } else if (matcher.matches()) {
+                    LocalDateTime date = LocalDateTime.parse(matcher.group(1), dateTimeFormatter);
+                    String item = matcher.group(3);
+                    try {
+                        if (!date.isAfter(LocalDateTime.now())) {
+                            throw new RuntimeException("Неправильная дата");
+                        }
+                        Message message = new Message(update.message().chat().id(), item, date);
+                        sendMessage(update.message().chat().id(), "Уведомление успешно создано, ожидайте");
+                        messageService.create(message);
+                        logger.info("Уведомление создано");
+                    } catch (RuntimeException e) {
+                        sendMessage(update.message().chat().id(), "Неправильная дата");
+                        logger.info("Отправлена неправильная дата");
                     }
-                    Message message = new Message(null, update.message().chat().id(), item, date);
-                    sendMessage(update.message().chat().id(), "Уведомление успешно создано, ожидайте");
-                    logger.info("Уведомление создано");
-                    messageService.create(message);
-                } catch (RuntimeException e) {
-                    logger.info("Отправлена неправильная дата");
-                    sendMessage(update.message().chat().id(), "Неправильная дата");
+                } else {
+                    sendMessage(update.message().chat().id(), "Неправильная команда для бота");
+                    logger.info("Отправлена неправильная команда для бота");
                 }
-            } else {
-                logger.info("Отправлена неправильная команда для бота");
-                sendMessage(update.message().chat().id(), "Неправильная команда для бота");
+            } catch (NullPointerException e) {
+                sendMessage(update.message().chat().id(), "Я работаю только с текстовой информацией");
             }
             // Process your updates here
         });
         return UpdatesListener.CONFIRMED_UPDATES_ALL;
     }
 
-    @Scheduled(cron = "0 0/1 * * * *")
-    public void Scheduled() {
-        List<Message> messages = messageService.findMessage(LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES));
-        messages.forEach(task -> {
-            logger.info("Отправлено уведомление: chatId = " + task.getChatId() + " , text = " + task.getText());
-            sendMessage(task.getChatId(), task.getText());
-            logger.info("Удалено уведомление из БД");
-            messageService.delete(task.getId());
-        });
-        List<Message> messages1 = messageService.findIsAfterMessage();
-        messages1.forEach(task -> {
-            logger.info("Отправлено прошедшее уведомление: chatId = " + task.getChatId() + " , text = " + task.getText());
-            sendMessage(task.getChatId(), task.getDate() + " " + task.getText());
-            logger.info("Удалено уведомление из БД");
-            messageService.delete(task.getId());
-        });
 
-    }
-
-    private SendResponse sendMessage(Long chatId, String text) {
+    public SendResponse sendMessage(Long chatId, String text) {
         SendMessage message = new SendMessage(chatId, text);
         return telegramBot.execute(message);
     }
