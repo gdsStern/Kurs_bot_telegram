@@ -32,9 +32,9 @@ public class Timer {
     void run() {
         List<Message> messages = messageService.findMessage(LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES));
         messages.forEach(task -> {
-            logger.info("Отправлено уведомление: chatId = " + task.getChatId() + " , text = " + task.getTextMessage());
             SendMessage message = new SendMessage(task.getChatId(), task.getTextMessage());
             telegramBot.execute(message);
+            logger.info("Отправлено уведомление: chatId = " + task.getChatId() + " , text = " + task.getTextMessage());
             messageService.delete(task.getId());
             logger.info("Удалено уведомление из БД");
         });
