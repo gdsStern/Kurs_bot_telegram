@@ -1,5 +1,9 @@
 package pro.sky.telegrambot.listener;
 
+import com.pengrad.telegrambot.TelegramBot;
+import com.pengrad.telegrambot.UpdatesListener;
+import com.pengrad.telegrambot.model.Update;
+import com.pengrad.telegrambot.request.SendMessage;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -11,32 +15,29 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.slf4j.Logger;
 
+import javax.annotation.PostConstruct;
+
 @Service
 public class Timer {
-
     private final MessageService messageService;
-    private Logger logger = LoggerFactory.getLogger(TelegramBotUpdatesListener.class);
-    private final TelegramBotUpdatesListener telegramBotUpdatesListener;
+    private final Logger logger = LoggerFactory.getLogger(Timer.class);
+    private final TelegramBot telegramBot;
 
-    public Timer(MessageService messageService, TelegramBotUpdatesListener telegramBotUpdatesListener) {
+    public Timer(MessageService messageService, TelegramBot telegramBot) {
         this.messageService = messageService;
-        this.telegramBotUpdatesListener = telegramBotUpdatesListener;
+        this.telegramBot = telegramBot;
     }
+
     @Scheduled(cron = "0 0/1 * * * *")
     void run() {
         List<Message> messages = messageService.findMessage(LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES));
         messages.forEach(task -> {
-            logger.info("Отправлено уведомление: chatId = " + task.getChatId() + " , text = " + task.getText());
-            telegramBotUpdatesListener.sendMessage(task.getChatId(), task.getText());
-            messageService.delete(task.getId());
-            logger.info("Удалено уведомление из БД");
-        });
-        messages = messageService.findIsAfterMessage();
-        messages.forEach(task -> {
-            telegramBotUpdatesListener.sendMessage(task.getChatId(), task.getData() + " " + task.getText());
-            logger.info("Отправлено прошедшее уведомление: chatId = " + task.getChatId() + " , text = " + task.getText());
+            logger.info("Отправлено уведомление: chatId = " + task.getChatId() + " , text = " + task.getTextMessage());
+            SendMessage message = new SendMessage(task.getChatId(), task.getTextMessage());
+            telegramBot.execute(message);
             messageService.delete(task.getId());
             logger.info("Удалено уведомление из БД");
         });
     }
+
 }

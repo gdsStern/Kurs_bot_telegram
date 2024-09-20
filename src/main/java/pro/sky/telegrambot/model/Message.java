@@ -9,8 +9,11 @@ public class Message {
     @Id
     @GeneratedValue
     private Long id;
+    //@Column(name = "id")
     private Long chatId;
+   // @Column(name = "message")
     private String text;
+   // @Column(name = "date")
     private LocalDateTime date;
 
     public Message(Long chatId, String text, LocalDateTime date) {
@@ -31,7 +34,7 @@ public class Message {
         return chatId;
     }
 
-    public String getText() {
+    public String getTextMessage() {
         return text;
     }
 
@@ -43,11 +46,3 @@ public class Message {
         this.id = id;
     }
 }
-
-//Предположу, что нам потребуется иметь первичный ключ в таблице, идентификатор чата,
-//в который нужно отправить уведомление, текст уведомления и дату+время,
-//когда требуется отправить уведомление. Возможно, вы захотите хранить какие-то дополнительные данные.
-
-//Расскажите о принципе наследования в ООП. Зачем он нужен?
-//Что такое агрегатные операторы? (тема «Базы данных»)
-//Какая реализация интерфейса Map позволяет сохранить порядок добавления элементов?

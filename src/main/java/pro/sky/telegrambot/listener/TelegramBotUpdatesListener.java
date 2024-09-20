@@ -59,39 +59,46 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                 return;
             }
             try {
-                Matcher matcher = pattern.matcher(update.message().text());
-                if (update.message().text().equals("/start")) {
-                    sendMessage(update.message().chat().id(), startMessage);
-                    logger.info("Отправлен ответ на команду \"/start\"");
-                } else if (matcher.matches()) {
-                    LocalDateTime date = LocalDateTime.parse(matcher.group(1), dateTimeFormatter);
-                    String item = matcher.group(3);
-                    try {
-                        if (!date.isAfter(LocalDateTime.now())) {
-                            throw new RuntimeException("Неправильная дата");
-                        }
-                        Message message = new Message(update.message().chat().id(), item, date);
-                        sendMessage(update.message().chat().id(), "Уведомление успешно создано, ожидайте");
-                        messageService.create(message);
-                        logger.info("Уведомление создано");
-                    } catch (RuntimeException e) {
-                        sendMessage(update.message().chat().id(), "Неправильная дата");
-                        logger.info("Отправлена неправильная дата");
-                    }
-                } else {
-                    sendMessage(update.message().chat().id(), "Неправильная команда для бота");
-                    logger.info("Отправлена неправильная команда для бота");
+                if (Objects.isNull(update.message().text())) {
+                    throw new RuntimeException("Нет текста");
                 }
-            } catch (NullPointerException e) {
-                sendMessage(update.message().chat().id(), "Я работаю только с текстовой информацией");
+            } catch (RuntimeException e) {
+                sendMessage(update.message().chat().id(), "Я работаю только с текстом");
+                logger.info("Отправлен не текст");
+                return;
             }
+
+            Matcher matcher = pattern.matcher(update.message().text());
+            if (update.message().text().equals("/start")) {
+                sendMessage(update.message().chat().id(), startMessage);
+                logger.info("Отправлен ответ на команду \"/start\"");
+            } else if (matcher.matches()) {
+                LocalDateTime date = LocalDateTime.parse(matcher.group(1), dateTimeFormatter);
+                String item = matcher.group(3);
+                try {
+                    if (!date.isAfter(LocalDateTime.now())) {
+                        throw new RuntimeException("Неправильная дата");
+                    }
+                    Message message = new Message(update.message().chat().id(), item, date);
+                    sendMessage(update.message().chat().id(), "Уведомление успешно создано, ожидайте");
+                    messageService.create(message);
+                    logger.info("Уведомление создано");
+                } catch (RuntimeException e) {
+                    sendMessage(update.message().chat().id(), "Неправильная дата");
+                    logger.info("Отправлена неправильная дата");
+                }
+            } else {
+                sendMessage(update.message().chat().id(), "Неправильная команда для бота");
+                logger.info("Отправлена неправильная команда для бота");
+            }
+
             // Process your updates here
         });
         return UpdatesListener.CONFIRMED_UPDATES_ALL;
     }
 
 
-    public SendResponse sendMessage(Long chatId, String text) {
+    private SendResponse sendMessage(Long chatId, String text) {
         SendMessage message = new SendMessage(chatId, text);
         return telegramBot.execute(message);
     }

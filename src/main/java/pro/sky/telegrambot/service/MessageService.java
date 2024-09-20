@@ -28,10 +28,6 @@ public class MessageService {
         return new ArrayList<>(messageRepository.findAllByDate(date));
     }
     @Transactional
-    public List<Message> findIsAfterMessage() {
-        return new ArrayList<>(messageRepository.findIsAfterDate());
-    }
-    @Transactional
     public void delete(Long id) {
         messageRepository.deleteById(id);
     }
